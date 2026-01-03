@@ -1,7 +1,7 @@
+-- sh_state_region_helper.lua
 --==============================================================
 -- state_region.lua — district→state (config-driven)
 -- Uses Config.StateDistricts (string "STATE_*" or numeric hashes)
--- Resolves names from canonical table OR Config.RegionAliases.
 -- Exports:
 --   getState(coords?) -> { hash:number, name:string, source:string } | nil
 --   debugDump(coords?)
@@ -11,7 +11,7 @@ local J = GetHashKey
 local UINT32 = 4294967296
 
 --==============================================================
---  Helpers
+-- Helpers
 --==============================================================
 local function v3(x, y, z)
     if type(vec3) == "function" then return vec3(x, y, z) end
@@ -39,7 +39,7 @@ local function norm(v)
 end
 
 --==============================================================
---  Canonical fallback names
+-- Canonical fallback names
 --==============================================================
 local CANON_STATES = {
     { hash = J("STATE_AMBARINO"),        name = "Ambarino" },
@@ -52,22 +52,7 @@ local CANON_STATES = {
 local CANON_NAME_BY_HASH = {}; for _, s in ipairs(CANON_STATES) do CANON_NAME_BY_HASH[s.hash] = s.name end
 
 --==============================================================
---  Build name map from Config.RegionAliases
---==============================================================
---[[local CONFIG_NAME_BY_HASH = {}
-local function buildConfigNameMap()
-    if not rawget(_G, 'Config') or type(Config.RegionAliases) ~= 'table' then return end
-    for alias, hash in pairs(Config.RegionAliases) do
-        local h = norm(hash)
-        if h ~= 0 then
-            local pretty = alias:gsub("_", " "):gsub("(%a)([%w_]*)", function(a,b) return a:upper()..b:lower() end)
-            CONFIG_NAME_BY_HASH[h] = pretty
-        end
-    end
-end]]
-
---==============================================================
---  Reverse map (district → state)
+-- Reverse map (district → state)
 --==============================================================
 local D2S, NAME_BY_HASH, built_ok = {}, {}, false
 local function clear(t) for k in pairs(t) do t[k] = nil end end
@@ -78,23 +63,17 @@ local function buildReverse()
     built_ok = false
 
     if not ensureConfig() then
-        print('[state_region] Config.StateDistricts not ready; will retry later.')
         return false
     end
 
-    -- Names
-    --buildConfigNameMap()
-    --for h, n in pairs(CANON_NAME_BY_HASH) do NAME_BY_HASH[h] = n end
-    --for h, n in pairs(CONFIG_NAME_BY_HASH) do NAME_BY_HASH[h] = n end
-
-    -- District → State mapping
     for stateKey, arr in pairs(Config.StateDistricts) do
         local sHash = norm(stateKey)
         if sHash ~= 0 and type(arr) == 'table' then
             if not NAME_BY_HASH[sHash] and type(stateKey) == "string" then
                 local k = stateKey
                 if not k:find("^STATE_") then k = "STATE_" .. k end
-                NAME_BY_HASH[sHash] = k:gsub("^STATE_", ""):gsub("_", " "):gsub("(%a)([%w_]*)", function(a,b) return a:upper()..b:lower() end)
+                NAME_BY_HASH[sHash] =
+                    k:gsub("^STATE_", ""):gsub("_", " "):gsub("(%a)([%w_]*)", function(a,b) return a:upper()..b:lower() end)
             end
             for _, d in ipairs(arr) do
                 local dHash = norm(d)
@@ -104,7 +83,6 @@ local function buildReverse()
     end
 
     built_ok = next(D2S) ~= nil
-    if not built_ok then print('[state_region] Reverse map empty; check Config.StateDistricts formatting.') end
     return built_ok
 end
 
@@ -113,33 +91,40 @@ local function ensureBuilt()
     return buildReverse()
 end
 
+-- Background gentle rebuild attempt (handles Config arriving late)
+CreateThread(function()
+    for _ = 1, 30 do
+        if ensureBuilt() then return end
+        Wait(500)
+    end
+end)
+
 --==============================================================
---  Native wrapper
+-- Native wrapper
 --==============================================================
 local N_GET_MAP_ZONE_AT_COORDS = 0x43AD8FC02B429D33
 local function zoneHashAt(coords, typeId)
     local ok, ret = pcall(Citizen.InvokeNative, N_GET_MAP_ZONE_AT_COORDS,
         coords.x, coords.y, coords.z, typeId, Citizen.ResultAsInteger())
     if ok and ret then return norm(ret) end
+
     ok, ret = pcall(Citizen.InvokeNative, N_GET_MAP_ZONE_AT_COORDS,
         coords.x, coords.y, coords.z, typeId)
     if ok and ret then return norm(ret) end
+
     return 0
 end
 
 --==============================================================
---  Detector (district-only)
+-- Detector (district-only)
 --==============================================================
 local function detectState(coords)
     if not ensureBuilt() then return nil end
-    local dHash = zoneHashAt(coords, 10)
+    local dHash = zoneHashAt(coords, 10) -- district
     local sHash = D2S[dHash]
 
     if not sHash and buildReverse() then sHash = D2S[dHash] end
     if not sHash then
-        if dHash ~= 0 then
-            print(('[state_region] Missing district mapping for 0x%08X. Add to Config.StateDistricts.'):format(dHash))
-        end
         return nil
     end
 
@@ -148,7 +133,7 @@ local function detectState(coords)
 end
 
 --==============================================================
---  Exports
+-- Exports
 --==============================================================
 exports('getState', function(coords)
     if not coords and not IsDuplicityVersion() then
