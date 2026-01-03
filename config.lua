@@ -167,6 +167,3 @@ Config.ResidencyTax = {
     -- Non-resident pays Y% of the configured regional tax rate (normally 100)
     NonResidentPercent = 100,
 }
-
-
-
