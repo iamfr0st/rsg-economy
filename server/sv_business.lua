@@ -1,3 +1,5 @@
+-- sv_business.lua
+
 --======================================================================
 -- rsg-economy / server/sv_business.lua
 -- Business registration + VAT-aware helper exports
@@ -10,6 +12,17 @@ local function normRegion(s)
     s = s:gsub('[%s%-]+', '_')
     s = s:gsub('^_+', ''):gsub('_+$', '')
     return s
+end
+
+-- HARDENED: use economy auth helper (which itself falls back)
+local function getHereRegionAlias(src)
+    local ok, alias = pcall(function()
+        return exports['rsg-economy']:GetPlayerRegionAlias(src)
+    end)
+    if ok and alias and alias ~= '' then
+        return alias
+    end
+    return nil
 end
 
 -- internal helpers
@@ -78,10 +91,8 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
     -- Resolve region
     local regionName = regionArg
     if regionArg == 'here' or not regionArg or regionArg == '' then
-        local ok, _, alias = pcall(function()
-            return lib.callback.await('rsg-economy:getRegionHash', src)
-        end)
-        if not ok or not alias then
+        regionName = getHereRegionAlias(src)
+        if not regionName then
             TriggerClientEvent('ox_lib:notify', src, {
                 title = 'Economy',
                 description = 'Unable to determine your current region.',
@@ -89,7 +100,6 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
             })
             return
         end
-        regionName = alias
     end
 
     -- Permission via economy _auth
@@ -113,7 +123,7 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
         regionName,
         businessName,
         licenseType,
-        true   -- mark VAT-registered by default, you can toggle later
+        true
     )
 
     TriggerClientEvent('ox_lib:notify', src, {
@@ -134,10 +144,8 @@ RSGCore.Commands.Add('unregisterbiz', 'Clear your business registration in this 
 
     local regionName = regionArg
     if regionArg == 'here' or not regionArg or regionArg == '' then
-        local ok, _, alias = pcall(function()
-            return lib.callback.await('rsg-economy:getRegionHash', src)
-        end)
-        if not ok or not alias then
+        regionName = getHereRegionAlias(src)
+        if not regionName then
             TriggerClientEvent('ox_lib:notify', src, {
                 title = 'Economy',
                 description = 'Unable to determine your current region.',
@@ -145,10 +153,8 @@ RSGCore.Commands.Add('unregisterbiz', 'Clear your business registration in this 
             })
             return
         end
-        regionName = alias
     end
 
-    -- You can restrict this further via CanActOnRegion if you want governors only.
     clearBusiness(Player.PlayerData.citizenid, regionName)
 
     TriggerClientEvent('ox_lib:notify', src, {
@@ -169,10 +175,8 @@ RSGCore.Commands.Add('bizinfo', 'Show your business info in this region', {
 
     local regionName = regionArg
     if regionArg == 'here' or not regionArg or regionArg == '' then
-        local ok, _, alias = pcall(function()
-            return lib.callback.await('rsg-economy:getRegionHash', src)
-        end)
-        if not ok or not alias then
+        regionName = getHereRegionAlias(src)
+        if not regionName then
             TriggerClientEvent('ox_lib:notify', src, {
                 title = 'Economy',
                 description = 'Unable to determine your current region.',
@@ -180,7 +184,6 @@ RSGCore.Commands.Add('bizinfo', 'Show your business info in this region', {
             })
             return
         end
-        regionName = alias
     end
 
     local row = getBusinessRow(Player.PlayerData.citizenid, regionName)
