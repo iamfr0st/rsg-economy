@@ -1,7 +1,18 @@
+-- cl_economy_menu.lua
 -- rsg-economy / client / cl_economy_menu.lua
--- ox_lib UI wrapper for all economy commands
+-- ox_lib UI wrapper for all economy commands (FIXED)
+
+local function ensureLib()
+    if not lib or not lib.registerContext then
+        print('[rsg-economy] ox_lib not available on client.')
+        return false
+    end
+    return true
+end
 
 local function openTaxMenu()
+    if not ensureLib() then return end
+
     lib.registerContext({
         id = 'rsg_economy_tax_menu',
         title = 'Regional Taxes',
@@ -19,13 +30,9 @@ local function openTaxMenu()
                         }},
                         { type = 'number', label = 'Percent', default = 2.0, min = 0, max = 100 },
                     })
-
                     if not input then return end
-                    local region   = input[1] or 'here'
-                    local category = input[2] or 'sales'
-                    local percent  = tonumber(input[3] or 0) or 0
 
-                    ExecuteCommand(('settax %s %s %s'):format(region, category, percent))
+                    ExecuteCommand(('settax %s %s %s'):format(input[1] or 'here', input[2] or 'sales', tonumber(input[3] or 0) or 0))
                 end
             },
             {
@@ -41,12 +48,9 @@ local function openTaxMenu()
                             { label = 'Property', value = 'property' },
                         }},
                     })
-
                     if not input then return end
-                    local region   = input[1] or 'here'
-                    local category = input[2] or 'all'
 
-                    ExecuteCommand(('cleartax %s %s'):format(region, category))
+                    ExecuteCommand(('cleartax %s %s'):format(input[1] or 'here', input[2] or 'all'))
                 end
             },
             {
@@ -56,10 +60,8 @@ local function openTaxMenu()
                     local input = lib.inputDialog('Check Taxes', {
                         { type = 'input', label = 'Region (name or "here")', default = 'here' },
                     })
-
                     if not input then return end
-                    local region = input[1] or 'here'
-                    ExecuteCommand(('gettax %s'):format(region))
+                    ExecuteCommand(('gettax %s'):format(input[1] or 'here'))
                 end
             },
             {
@@ -75,13 +77,9 @@ local function openTaxMenu()
                         }},
                         { type = 'number', label = 'Base Amount', default = 10, min = 0 },
                     })
-
                     if not input then return end
-                    local region   = input[1] or 'here'
-                    local category = input[2] or 'sales'
-                    local base     = tonumber(input[3] or 10) or 10
 
-                    ExecuteCommand(('debugtax %s %s %s'):format(region, category, base))
+                    ExecuteCommand(('debugtax %s %s %s'):format(input[1] or 'here', input[2] or 'sales', tonumber(input[3] or 10) or 10))
                 end
             },
         }
@@ -91,6 +89,8 @@ local function openTaxMenu()
 end
 
 local function openBusinessMenu()
+    if not ensureLib() then return end
+
     lib.registerContext({
         id = 'rsg_economy_business_menu',
         title = 'Business & VAT',
@@ -104,13 +104,12 @@ local function openBusinessMenu()
                         { type = 'input', label = 'License Type (shop/market/etc)', default = 'shop' },
                         { type = 'input', label = 'Business Name', placeholder = 'My General Store' },
                     })
-
                     if not input then return end
+
                     local region      = input[1] or 'here'
                     local licenseType = input[2] or 'general'
                     local name        = input[3] or 'Business'
 
-                    -- business name may contain spaces; quote it
                     ExecuteCommand(('registerbiz %s %s "%s"'):format(region, licenseType, name))
                 end
             },
@@ -121,10 +120,8 @@ local function openBusinessMenu()
                     local input = lib.inputDialog('Unregister Business', {
                         { type = 'input', label = 'Region (name or "here")', default = 'here' },
                     })
-
                     if not input then return end
-                    local region = input[1] or 'here'
-                    ExecuteCommand(('unregisterbiz %s'):format(region))
+                    ExecuteCommand(('unregisterbiz %s'):format(input[1] or 'here'))
                 end
             },
             {
@@ -134,18 +131,16 @@ local function openBusinessMenu()
                     local input = lib.inputDialog('Business Info', {
                         { type = 'input', label = 'Region (name or "here")', default = 'here' },
                     })
-
                     if not input then return end
-                    local region = input[1] or 'here'
-                    ExecuteCommand(('bizinfo %s'):format(region))
+                    ExecuteCommand(('bizinfo %s'):format(input[1] or 'here'))
                 end
             },
             {
-                title = 'My VAT Summary (existing UI)',
-                description = 'Open VAT audit/menu (if you wired those already).',
+                title = 'My VAT Dashboard',
+                description = 'Opens your VAT dashboard (requires a business in your region).',
                 onSelect = function()
-                    -- hook into your existing VAT NUI if present
-                    TriggerEvent('rsg-economy:client:openVATMenu')
+                    -- Uses your server command that triggers rsg-economy:openVatMenu
+                    ExecuteCommand('vatmenu')
                 end
             }
         }
@@ -155,6 +150,8 @@ local function openBusinessMenu()
 end
 
 local function openLandMenu()
+    if not ensureLib() then return end
+
     lib.registerContext({
         id = 'rsg_economy_land_menu',
         title = 'Land & Property Tax',
@@ -169,14 +166,14 @@ local function openLandMenu()
                         { type = 'number', label = 'Tax Rate (% per interval)', default = 1.0, min = 0 },
                         { type = 'input',  label = 'Plot Name', placeholder = 'Valentine Ranch' },
                     })
-
                     if not input then return end
-                    local region = input[1] or 'here'
-                    local value  = tonumber(input[2] or 0) or 0
-                    local rate   = tonumber(input[3] or 0) or 0
-                    local name   = input[4] or 'Land Plot'
 
-                    ExecuteCommand(('registerland %s %s %s "%s"'):format(region, value, rate, name))
+                    ExecuteCommand(('registerland %s %s %s "%s"'):format(
+                        input[1] or 'here',
+                        tonumber(input[2] or 0) or 0,
+                        tonumber(input[3] or 0) or 0,
+                        input[4] or 'Land Plot'
+                    ))
                 end
             },
             {
@@ -193,6 +190,8 @@ local function openLandMenu()
 end
 
 local function openReportsMenu()
+    if not ensureLib() then return end
+
     lib.registerContext({
         id = 'rsg_economy_reports_menu',
         title = 'Economy Reports',
@@ -205,12 +204,9 @@ local function openReportsMenu()
                         { type = 'input',  label = 'Region (name or "here")', default = 'here' },
                         { type = 'number', label = 'Days Lookback', default = 30, min = 1, max = 90 },
                     })
-
                     if not input then return end
-                    local region = input[1] or 'here'
-                    local days   = tonumber(input[2] or 30) or 30
 
-                    ExecuteCommand(('econreport %s %s'):format(region, days))
+                    ExecuteCommand(('econreport %s %s'):format(input[1] or 'here', tonumber(input[2] or 30) or 30))
                 end
             },
             {
@@ -225,41 +221,22 @@ local function openReportsMenu()
 end
 
 local function openMainEconomyMenu()
+    if not ensureLib() then return end
+
     lib.registerContext({
         id = 'rsg_economy_main_menu',
         title = 'Regional Economy',
         options = {
-            {
-                title = 'Taxes',
-                description = 'Set, clear, and view regional taxes.',
-                icon = 'scale-balanced',
-                onSelect = openTaxMenu
-            },
-            {
-                title = 'Businesses & VAT',
-                description = 'Register businesses and manage VAT.',
-                icon = 'store',
-                onSelect = openBusinessMenu
-            },
-            {
-                title = 'Land / Property',
-                description = 'Register land and view property tax.',
-                icon = 'map',
-                onSelect = openLandMenu
-            },
-            {
-                title = 'Reports',
-                description = 'View region revenue summaries.',
-                icon = 'chart-column',
-                onSelect = openReportsMenu
-            },
+            { title = 'Taxes',          description = 'Set, clear, and view regional taxes.', icon = 'scale-balanced', onSelect = openTaxMenu },
+            { title = 'Businesses & VAT', description = 'Register businesses and manage VAT.',  icon = 'store',          onSelect = openBusinessMenu },
+            { title = 'Land / Property', description = 'Register land and view property tax.', icon = 'map',            onSelect = openLandMenu },
+            { title = 'Reports',        description = 'View region revenue summaries.',       icon = 'chart-column',   onSelect = openReportsMenu },
         }
     })
 
     lib.showContext('rsg_economy_main_menu')
 end
 
--- Command to open UI
 RegisterCommand('economy', function()
     openMainEconomyMenu()
 end, false)
