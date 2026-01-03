@@ -1,14 +1,19 @@
+-- sh_tax_helper.lua
 --======================================================================
--- rsg-economy / server/tax_helper.lua
+-- rsg-economy / shared/sh_tax_helper.lua
 -- Centralized tax + ledger utility for all resources
--- Handles:
---   - SALES / PROPERTY: tax added on top (buyer pays)
---   - TRADE          : tax deducted from earnings (seller pays)
--- Call from other resources via:
---   exports['rsg-economy']:ApplyAndRecordTax(...)
+--
+-- IMPORTANT:
+--   This file is SAFE to load in shared_scripts.
+--   - Server: performs actual ApplyAndRecordTax logic and records revenue/VAT.
+--   - Client: provides a lightweight stub to avoid runtime errors if called.
+--
+-- Exports:
+--   ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, description)
+--   IsRegionVATEnabled(region_name)
 --======================================================================
 
-local RSGCore = exports['rsg-core']:GetCoreObject()
+local IS_SERVER = IsDuplicityVersion()
 
 -- internal: safe number
 local function N(x, d)
@@ -41,34 +46,60 @@ local function isVATActive(region_name, category)
     return isVATRegionEnabled(region_name)
 end
 
---[[
+-- =========================================================
+-- CLIENT SIDE: stub (prevents shared load crashes)
+-- =========================================================
+if not IS_SERVER then
+    -- Client cannot safely compute region taxes (server owns DB + player data),
+    -- and cannot RecordCollectedTax. So we return a minimal "no-tax" result.
+    -- If you want client callers to get real results, call a server callback.
+    local function ApplyAndRecordTax(_, category, basePrice, amount, _, _)
+        local cat  = tostring(category or 'sales')
+        local amt  = N(amount, 1)
+        local unit = N(basePrice, 0)
+        local gross = round2(unit * amt)
 
-ApplyAndRecordTax(
-    src,             -- player id (buyer for sales/property; seller for trade)
-    category,        -- 'sales' | 'property' | 'trade'
-    basePrice,       -- pre-tax price per unit (or total, with amount=1)
-    amount,          -- units (default 1)
-    sellerCitizenId, -- optional: business/stall owner for sales, or player for trade
-    description      -- optional ledger note
+        if cat == 'trade' then
+            return {
+                region_name = 'unknown',
+                percent     = 0,
+                tax         = 0,
+                subtotal    = gross,
+                total       = gross,
+                mode        = 'deduct',
+                gross       = gross,
+                net         = gross
+            }
+        end
 
-Return:
-{
-    region_name,  -- normalized region name
-    percent,      -- tax percent
-    tax,          -- tax amount
-    subtotal,     -- WHAT THE CALLER SHOULD PAY OUT
-    total,        -- WHAT THE COUNTERPART PAYS (sales/property) OR GROSS TOTAL (trade)
-    mode,         -- 'add' for sales/property, 'deduct' for trade
-    gross,        -- base * amount
-    net,          -- for trade: gross - tax ; for others: same as gross
-}
---]]
+        return {
+            region_name = 'unknown',
+            percent     = 0,
+            tax         = 0,
+            subtotal    = gross,
+            total       = gross,
+            mode        = 'add',
+            gross       = gross,
+            net         = gross
+        }
+    end
+
+    exports('ApplyAndRecordTax', ApplyAndRecordTax)
+    exports('IsRegionVATEnabled', isVATRegionEnabled)
+    return
+end
+
+-- =========================================================
+-- SERVER SIDE: full implementation
+-- =========================================================
+
+local RSGCore = exports['rsg-core']:GetCoreObject()
 
 function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, description)
     local Player = RSGCore.Functions.GetPlayer(src)
     if not Player then return nil end
 
-    local cat  = tostring(category or 'sales')
+    local cat  = tostring(category or 'sales'):lower()
     local amt  = N(amount, 1)
     local unit = N(basePrice, 0)
     local grossBase = round2(unit * amt)
@@ -78,13 +109,10 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
     -------------------------------------------------
     local res
     local ok = pcall(function()
-        -- ApplyTaxForPlayerRegion returns:
-        -- { region_name, subtotal, tax, total, percent }
         res = exports['rsg-economy']:ApplyTaxForPlayerRegion(src, cat, unit, amt)
     end)
 
     if not ok or type(res) ~= 'table' then
-        -- graceful fallback: 0% tax
         res = {
             region_name = 'unknown',
             subtotal    = grossBase,
@@ -95,7 +123,7 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
     end
 
     local region = res.region_name or 'unknown'
-    local gross  = round2(N(res.subtotal, grossBase)) -- should equal grossBase
+    local gross  = round2(N(res.subtotal, grossBase))
     local tax    = round2(N(res.tax, 0))
     local pct    = N(res.percent, 0)
 
@@ -105,21 +133,19 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
     local mode, payout_subtotal, counterparty_total, net
 
     if cat == 'trade' then
-        -- >>> TRADE: deduct tax from the seller's earnings <<<
         mode               = 'deduct'
-        net                = round2(gross - tax)     -- player receives this
-        payout_subtotal    = net                     -- what scripts should pay out
-        counterparty_total = gross                   -- gross trade value (for logs/UI)
+        net                = round2(gross - tax)
+        payout_subtotal    = net
+        counterparty_total = gross
     else
-        -- >>> SALES/PROPERTY: add tax on top for the buyer <<<
         mode               = 'add'
-        net                = gross                   -- not really used for sales
-        payout_subtotal    = gross                   -- seller receives base (pre-tax)
-        counterparty_total = round2(gross + tax)     -- buyer pays
+        net                = gross
+        payout_subtotal    = gross
+        counterparty_total = round2(gross + tax)
     end
 
     -------------------------------------------------
-    -- Record into revenue / ledger (ALWAYS, if tax>0)
+    -- Record into revenue / ledger (if tax > 0)
     -------------------------------------------------
     do
         local buyerIdentifier = nil
@@ -134,7 +160,7 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
                     region,
                     cat,
                     tax,
-                    gross, -- always gross base for reporting
+                    gross,
                     buyerIdentifier,
                     sellerCitizenId,
                     description or ('transaction: ' .. cat)
@@ -150,7 +176,6 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
         local buyerCitizenId      = Player.PlayerData.citizenid
         local sellerCitizenIdNorm = sellerCitizenId
 
-        -- In this simplified version we treat both sides as potential businesses.
         if sellerCitizenIdNorm then
             pcall(function()
                 exports['rsg-economy']:VAT_RecordOutput(
@@ -162,23 +187,19 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
         pcall(function()
             exports['rsg-economy']:VAT_RecordInput(
                 buyerCitizenId, region, gross, tax, pct, description or (cat .. ' purchase')
-            )
+            end)
         end)
     end
 
     -------------------------------------------------
-    -- Notifications (your request)
-    --  - SALES/PROPERTY: notify buyer that tax was added
-    --  - TRADE: notify seller that tax was deducted
+    -- Notifications
     -------------------------------------------------
     if tax > 0 and src and src > 0 then
         local msg
         if cat == 'trade' then
-            msg = ('Trade tax %.2f%% deducted: $%.2f from your payout.')
-                :format(pct, tax)
+            msg = ('Trade tax %.2f%% deducted: $%.2f from your payout.'):format(pct, tax)
         else
-            msg = ('Sales tax %.2f%% added: $%.2f on your payment.')
-                :format(pct, tax)
+            msg = ('Sales tax %.2f%% added: $%.2f on your payment.'):format(pct, tax)
         end
 
         TriggerClientEvent('ox_lib:notify', src, {
@@ -193,7 +214,7 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
         region_name = region,
         percent     = pct,
         tax         = tax,
-        subtotal    = payout_subtotal,   -- PAY THIS to the recipient
+        subtotal    = payout_subtotal,
         total       = counterparty_total,
         mode        = mode,
         gross       = gross,
