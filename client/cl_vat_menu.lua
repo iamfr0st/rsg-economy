@@ -2,6 +2,7 @@
 --========================================================--
 -- VAT MENU UI (CLIENT) - FIXED
 --========================================================--
+lib.locale()
 
 local function money(x)
     return ("$%.2f"):format(tonumber(x) or 0)
@@ -18,8 +19,8 @@ end
 RegisterNetEvent('rsg-economy:openVatMenu', function(data)
     data = data or {}
 
-    local bizName   = data.business_name or "Business"
-    local region    = data.region or "unknown"
+    local bizName   = data.business_name or (locale('business_label') or "Business")
+    local region    = data.region or (locale('unknown') or "unknown")
     local s         = data.summary or {}
     local citizenid = data.citizenid
 
@@ -31,25 +32,25 @@ RegisterNetEvent('rsg-economy:openVatMenu', function(data)
     local due = tonumber(s.net_due or 0) or 0
     local settleDesc
     if due > 0 then
-        settleDesc = ("Pay %s to government"):format(money(due))
+        settleDesc = (locale('pay_to_government') or "Pay %s to government"):format(money(due))
     elseif due < 0 then
-        settleDesc = ("Refund %s due to you"):format(money(-due))
+        settleDesc = (locale('refund_due') or "Refund %s due to you"):format(money(-due))
     else
-        settleDesc = "Nothing to settle"
+        settleDesc = locale('nothing_to_settle') or "Nothing to settle"
     end
 
     lib.registerContext({
         id = "vat_menu",
-        title = ("VAT — %s (%s)"):format(bizName, region),
+        title = (locale("vat_ledger_title") or "VAT — %s (%s)"):format(bizName, region),
         canClose = true,
         options = {
-            { title = "Output VAT", description = money(s.output),  disabled = true, icon = "arrow-up" },
-            { title = "Input VAT",  description = money(s.input),   disabled = true, icon = "arrow-down" },
-            { title = "Settled",    description = money(s.settled), disabled = true, icon = "briefcase" },
-            { title = "Net VAT Due",description = money(s.net_due), disabled = true, icon = "scale-balanced" },
+            { title = locale('output_label_vat') or "Output VAT", description = money(s.output),  disabled = true, icon = "arrow-up" },
+            { title = locale('input_label_vat') or "Input VAT",  description = money(s.input),   disabled = true, icon = "arrow-down" },
+            { title = locale('settled_label') or "Settled",    description = money(s.settled), disabled = true, icon = "briefcase" },
+            { title = locale('net_vat_due_label') or "Net VAT Due",description = money(s.net_due), disabled = true, icon = "scale-balanced" },
 
             {
-                title = "Settle VAT",
+                title = locale("settle_vat") or "Settle VAT",
                 icon = "circle-check",
                 description = settleDesc,
                 disabled = (due == 0),
@@ -57,7 +58,7 @@ RegisterNetEvent('rsg-economy:openVatMenu', function(data)
                     -- IMPORTANT: server listens to RegisterNetEvent("vat:clientSettle")
                     -- so we must TriggerServerEvent from client.
                     if not citizenid or not region then
-                        return notify("VAT", "Missing VAT data; cannot settle.", "error", 7000)
+                        return notify(locale("vat") or "VAT", locale("missing_vat_data") or "Missing VAT data; cannot settle.", "error", 7000)
                     end
 
                     TriggerServerEvent("vat:clientSettle", { citizenid = citizenid, region = region })

@@ -2,6 +2,7 @@
 --========================================================--
 -- Client VAT Audit Panel (ox_lib) - HARDENED
 --========================================================--
+lib.locale()
 
 local function fmtMoney(val)
     return ("$%.2f"):format(tonumber(val) or 0)
@@ -33,14 +34,14 @@ RegisterNetEvent('rsg-economy:vatAuditOpen', function(data)
 
         local state
         if net > 0.01 then
-            state = ('OWES %s'):format(fmtMoney(net))
+            state = (locale('owes_label') or 'OWES %s'):format(fmtMoney(net))
         elseif net < -0.01 then
-            state = ('REFUND %s'):format(fmtMoney(-net))
+            state = (locale('refund_label') or 'REFUND %s'):format(fmtMoney(-net))
         else
-            state = 'Settled'
+            state = locale('settled_label') or 'Settled'
         end
 
-        local desc = ('Output: %s | Input: %s | Settled: %s | %s'):format(
+        local desc = (locale('output_label') or 'Output: %s') .. ' | ' .. (locale('input_label') or 'Input: %s') .. ' | ' .. (locale('settled_label_porc') or 'Settled: %s') .. ' | %s'):format(
             fmtMoney(biz.output),
             fmtMoney(biz.input),
             fmtMoney(biz.settled),
@@ -48,7 +49,7 @@ RegisterNetEvent('rsg-economy:vatAuditOpen', function(data)
         )
 
         opts[#opts+1] = {
-            title       = biz.business_name or ('Business #' .. tostring(biz.business_id)),
+            title       = biz.business_name or (locale('business_label') or 'Business #' .. tostring(biz.business_id)),
             description = safeStr(desc, 200),
             icon        = (net > 0.01 and 'triangle-exclamation')
                        or (net < -0.01 and 'circle-arrow-left')
@@ -65,7 +66,7 @@ RegisterNetEvent('rsg-economy:vatAuditOpen', function(data)
 
     lib.registerContext({
         id = 'vat_audit_main',
-        title = ('VAT Audit — %s'):format(region),
+        title = (locale('vat_audit_title') or 'VAT Audit — %s'):format(region),
         canClose = true,
         options = opts
     })
@@ -76,8 +77,8 @@ end)
 RegisterNetEvent('rsg-economy:vatAuditDetail', function(args)
     args = args or {}
     local business_id   = tonumber(args.business_id or 0) or 0
-    local business_name = args.business_name or ('Business #' .. tostring(business_id))
-    local region        = args.region or 'unknown'
+    local business_name = args.business_name or (locale('business_label') or 'Business #' .. tostring(business_id))
+    local region        = args.region or locale('unknown') or 'unknown'
 
     if business_id <= 0 then
         return print('[rsg-economy] vatAuditDetail: invalid business_id')
@@ -95,16 +96,16 @@ RegisterNetEvent('rsg-economy:vatAuditDetail', function(args)
 
     if #ledger == 0 then
         opts[#opts+1] = {
-            title = 'No VAT ledger entries.',
-            description = 'This business has no recorded INPUT/OUTPUT/SETTLEMENT entries yet.',
+            title = locale('no_vat_ledger_entries') or 'No VAT ledger entries.',
+            description = locale('no_vat_ledger_entries_description') or 'This business has no recorded INPUT/OUTPUT/SETTLEMENT entries yet.',
             disabled = true
         }
     else
         for _, row in ipairs(ledger) do
             local dir = tostring(row.direction or '?')
-            local tag = (dir == 'OUTPUT' and 'Sale')
-                     or (dir == 'INPUT' and 'Expense')
-                     or (dir == 'SETTLEMENT' and 'Settle')
+            local tag = (dir == (locale('output_label_upper') or 'OUTPUT') and (locale('sale_label') or 'Sale'))
+                     or (dir == (locale('input_label_upper') or 'INPUT') and (locale('expense_label') or 'Expense'))
+                     or (dir == (locale('settled_label_upper') or 'SETTLEMENT') and (locale('settle_label') or 'Settle'))
                      or dir
 
             local title = ('[%s] %s'):format(tag, fmtMoney(row.tax_amount or 0))
@@ -125,7 +126,7 @@ RegisterNetEvent('rsg-economy:vatAuditDetail', function(args)
 
     lib.registerContext({
         id = id,
-        title = ('VAT Ledger — %s (%s)'):format(business_name, region),
+        title = (locale('vat_ledger_title') or 'VAT Ledger — %s (%s)'):format(business_name, region),
         menu  = 'vat_audit_main',
         canClose = true,
         options = opts

@@ -6,6 +6,7 @@
 --========================================================--
 
 local RSGCore = exports['rsg-core']:GetCoreObject()
+lib.locale()
 
 ------------------------------------------------------------
 -- Region VAT enable check
@@ -202,7 +203,7 @@ RSGCore.Commands.Add("vatmenu", "Open your VAT dashboard", {}, false, function(s
     local citizenid = Player.PlayerData.citizenid
     local region    = getCallerRegionName(src)
     if not region then
-        return notify(src, "VAT", "Could not determine your region.", "error")
+        return notify(src, locale('vat') or "VAT", locale('unable_to_detect_region') or "Could not determine your region.", "error")
     end
 
     local biz = MySQL.single.await(
@@ -210,7 +211,7 @@ RSGCore.Commands.Add("vatmenu", "Open your VAT dashboard", {}, false, function(s
         { citizenid, region }
     )
     if not biz then
-        return notify(src, "VAT", "You do not own a business in this region.", "error")
+        return notify(src, locale('vat') or "VAT", locale('no_own_business_registered') or "You do not own a business in this region.", "error")
     end
 
     local summary = VAT_GetSummary(citizenid, region)
@@ -235,79 +236,79 @@ RegisterNetEvent("vat:clientSettle", function(data)
     local region    = data.region
 
     if Player.PlayerData.citizenid ~= citizenid then
-        return notify(src, "VAT", "This is not your business.", "error")
+        return notify(src, locale('vat') or "VAT", locale('not_your_business') or "This is not your business.", "error")
     end
 
     local summary = VAT_GetSummary(citizenid, region)
     local net     = summary.net_due
 
     if net == 0 then
-        return notify(src, "VAT", "Nothing to settle.", "inform")
+        return notify(src, locale('vat') or "VAT", locale('nothing_to_settle') or "Nothing to settle.", "inform")
     end
 
     -- IMPORTANT: keep money operations deterministic (whole dollars)
     if net > 0 then
         local pay = math.floor(net + 0.5)
         if pay <= 0 then
-            return notify(src, "VAT", "Nothing to settle.", "inform")
+            return notify(src, locale('vat') or "VAT", locale('nothing_to_settle') or "Nothing to settle.", "inform")
         end
 
         if not Player.Functions.RemoveMoney("cash", pay, "vat-settlement") then
-            return notify(src, "VAT", "Insufficient cash to settle VAT.", "error")
+            return notify(src, locale('vat') or "VAT", locale('insufficient_funds_cash') or "Insufficient cash to settle VAT.", "error")
         end
 
         VAT_Settle(citizenid, region, "Owner VAT Settlement")
-        notify(src, "VAT", ("You paid $%d in VAT."):format(pay), "success")
+        notify(src, locale('vat') or "VAT", (locale('you_paid_vat') or "You paid $%d in VAT."):format(pay), "success")
     else
         local refund = math.floor((-net) + 0.5)
         if refund <= 0 then
-            return notify(src, "VAT", "Nothing to settle.", "inform")
+            return notify(src, locale('vat') or "VAT", locale('nothing_to_settle') or "Nothing to settle.", "inform")
         end
 
         Player.Functions.AddMoney("cash", refund, "vat-refund")
         VAT_Settle(citizenid, region, "VAT Refund")
-        notify(src, "VAT", ("You received a refund of $%d."):format(refund), "success")
+        notify(src, locale('vat') or "VAT", (locale('you_received_refund') or "You received a refund of $%d."):format(refund), "success")
     end
 end)
 
 ------------------------------------------------------------
 -- GOVERNOR COMMANDS
 ------------------------------------------------------------
-RSGCore.Commands.Add("vatreport", "VAT summary for business", {
-    { name = "citizenid" },
-    { name = "region_name" }
+RSGCore.Commands.Add("vatreport", locale("vat_report_command") or "VAT summary for business", {
+    { name = "citizenid", help = locale("citizenid_label") or "business owner's citizenid" },
+    { name = "region_name", help = locale("region_label_optional") or "optional region name (default: your region)" }
 }, false, function(src, args)
     local citizenid = args[1]
     local region    = args[2] or getCallerRegionName(src)
     if not citizenid or not region then
-        return notify(src, "VAT", "Usage: /vatreport <citizenid> [region]", "inform")
+        return notify(src, locale("vat") or "VAT", locale("vat_report_usage") or "Usage: /vatreport <citizenid> [region]", "inform")
     end
 
     local summary = VAT_GetSummary(citizenid, region)
-    local text = ("Region: %s\nOutput VAT: $%.2f\nInput VAT: $%.2f\nSettled: $%.2f\nNet Due: $%.2f")
+    local text = (locale("vat_report_vsd") or "Region: %s\nOutput VAT: $%.2f\nInput VAT: $%.2f\nSettled: $%.2f\nNet Due: $%.2f")
         :format(region, summary.output, summary.input, summary.settled, summary.net_due)
 
     notify(src, "VAT Report", text, "success", 12000)
 end)
 
-RSGCore.Commands.Add("settlevat", "Manually settle VAT for a business", {
-    { name = "citizenid" },
-    { name = "region_name" }
+RSGCore.Commands.Add("settlevat", locale("settle_vat_command") or "Manually settle VAT for a business", {
+    { name = "citizenid", help = locale("citizenid_label") or "business owner's citizenid" },
+    { name = "region_name", help = locale("region_label_optional") or "optional region name (default: your region)" }
 }, false, function(src, args)
     local citizenid = args[1]
     local region    = args[2] or getCallerRegionName(src)
 
     local amt = VAT_Settle(citizenid, region, "Manual settlement")
     if amt > 0 then
-        notify(src, "VAT", ("Settled $%.2f VAT for %s."):format(amt, citizenid), "success")
+        notify(src, locale("vat") or "VAT", (locale("settled_vat_for") or "Settled $%.2f VAT for %s."):format(amt, citizenid), "success")
     else
-        notify(src, "VAT", "Nothing to settle.", "inform")
+        notify(src, locale("vat") or "VAT", locale("nothing_to_settle") or "Nothing to settle.", "inform")
     end
 end)
 
 -- /registerbusiness
-RSGCore.Commands.Add('registerbusiness', 'Register a business in your current region', {
-    { name = 'name', help = 'Business Name (e.g. Sundance Trading Co.)' }
+RSGCore.Commands.Add('registerbusiness',  locale("registerbiz_command_description") or 'Register a business in your current region', {
+    { name = 'name', help = locale("business_name_label") or "Business Name (e.g. Sundance Trading Co.)" }
 }, false, function(src, args)
     local Player = RSGCore.Functions.GetPlayer(src)
     if not Player then return end
@@ -316,21 +317,21 @@ RSGCore.Commands.Add('registerbusiness', 'Register a business in your current re
     local region    = getCallerRegionName(src)
 
     if not region then
-        return notify(src, 'Business', 'Unable to determine your region.', 'error', 7000)
+        return notify(src, locale("business") or "Business", locale("unable_to_detect_region") or "Unable to determine your region.", "error", 7000)
     end
 
     if not isRegionVATEnabled(region) then
-        return notify(src, 'Business', ('Business registration is not available in %s.'):format(region), 'error', 7000)
+        return notify(src, locale("business") or "Business", (locale("business_registration_not_available") or "Business registration is not available in %s."):format(region), "error", 7000)
     end
 
     local name = table.concat(args or {}, ' ')
     name = (name or ''):gsub('^%s+', ''):gsub('%s+$', '')
     if name == '' then
-        return notify(src, 'Business', 'Usage: /registerbusiness <Business Name>', 'inform', 8000)
+        return notify(src, locale("business") or "Business", locale("registerbiz_command_usage") or "Usage: /registerbusiness <Business Name>", "inform", 8000)
     end
 
     if #name < 3 or #name > 64 then
-        return notify(src, 'Business', 'Business name must be between 3 and 64 characters.', 'error', 8000)
+        return notify(src, locale("business") or "Business", locale("business_name_length_error") or "Business name must be between 3 and 64 characters.", "error", 8000)
     end
 
     local res = MySQL.single.await([[
@@ -340,7 +341,7 @@ RSGCore.Commands.Add('registerbusiness', 'Register a business in your current re
     ]], { citizenid, region })
 
     if not res then
-        return notify(src, 'Business', 'You must be a registered resident of this region to open a business.', 'error', 8000)
+        return notify(src, locale("business") or "Business", locale("error_resident") or "You must be a registered resident of this region to open a business.", "error", 8000)
     end
 
     local existing = MySQL.single.await([[
@@ -350,9 +351,9 @@ RSGCore.Commands.Add('registerbusiness', 'Register a business in your current re
     ]], { citizenid, region })
 
     if existing then
-        return notify(src, 'Business',
-            ('You already own a business ("%s") in this region.'):format(existing.name),
-            'error', 9000
+        return notify(src, locale("business") or "Business",
+            (locale("already_own_business") or 'You already own a business ("%s") in this region.'):format(existing.name),
+            "error", 9000
         )
     end
 
@@ -363,9 +364,9 @@ RSGCore.Commands.Add('registerbusiness', 'Register a business in your current re
 
     if fee > 0 then
         if not Player.Functions.RemoveMoney('cash', fee, 'business-registration') then
-            return notify(src, 'Business',
-                ('You need $%d in cash to register a business.'):format(fee),
-                'error', 9000
+            return notify(src, locale("business") or "Business",
+                (locale("need_cash_to_register_business") or 'You need $%d in cash to register a business.'):format(fee),
+                "error", 9000
             )
         end
     end
@@ -385,8 +386,8 @@ RSGCore.Commands.Add('registerbusiness', 'Register a business in your current re
         ensureVATAccount(biz.id, region)
     end
 
-    notify(src, 'Business',
-        ('You registered "%s" as a business in %s%s.'):format(
+    notify(src, locale("business") or "Business",
+        (locale("registered_business_sv") or 'You registered "%s" as a business in %s%s.'):format(
             name, region,
             fee > 0 and (' (paid $' .. fee .. ' fee)') or ''
         ),
@@ -395,8 +396,8 @@ RSGCore.Commands.Add('registerbusiness', 'Register a business in your current re
 end, 'user')
 
 -- /vataudit
-RSGCore.Commands.Add('vataudit', 'Open VAT audit panel for this region', {
-    { name = 'region', help = 'Optional region alias (new_hanover, lemoyne, etc.)' }
+RSGCore.Commands.Add('vataudit', locale("vataudit_command_description") or 'Open VAT audit panel for this region', {
+    { name = 'region', help = locale("region_alias_optional") or 'Optional region alias (new_hanover, lemoyne, etc.)' }
 }, false, function(source, args)
     local src    = source
     local Player = RSGCore.Functions.GetPlayer(src)
@@ -404,7 +405,7 @@ RSGCore.Commands.Add('vataudit', 'Open VAT audit panel for this region', {
 
     local region = args[1] and string.lower(args[1]) or getCallerRegionName(src)
     if not region then
-        return notify(src, 'VAT Audit', 'Unable to determine region.', 'error', 8000)
+        return notify(src, locale("vat_audit") or 'VAT Audit', locale("unable_to_detect_region") or 'Unable to determine region.', 'error', 8000)
     end
 
     local okPerm = false
@@ -423,7 +424,7 @@ RSGCore.Commands.Add('vataudit', 'Open VAT audit panel for this region', {
     end
 
     if not okPerm then
-        return notify(src, 'VAT Audit', 'You are not allowed to audit VAT in this region.', 'error', 8000)
+        return notify(src, locale("vat_audit") or 'VAT Audit', locale("not_allowed_audit_vat") or 'You are not allowed to audit VAT in this region.', 'error', 8000)
     end
 
     local rows = MySQL.query.await([[
@@ -442,7 +443,7 @@ RSGCore.Commands.Add('vataudit', 'Open VAT audit panel for this region', {
     ]], { region }) or {}
 
     if #rows == 0 then
-        return notify(src, 'VAT Audit', ('No registered businesses found in %s.'):format(region), 'inform', 8000)
+        return notify(src, locale("vat_audit") or 'VAT Audit', (locale("no_registered_businesses") or 'No registered businesses found in %s.'):format(region), 'inform', 8000)
     end
 
     local businesses = {}

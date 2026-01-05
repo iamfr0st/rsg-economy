@@ -6,6 +6,7 @@
 --======================================================================
 
 local RSGCore = exports['rsg-core']:GetCoreObject()
+lib.locale()
 
 local function normRegion(s)
     s = tostring(s or ''):lower()
@@ -64,10 +65,10 @@ end
 --======================================================================
 
 -- /registerbiz [region|here] [licenseType] [business name...]
-RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region', {
-    { name = 'region',      help = 'region name or "here"' },
-    { name = 'licenseType', help = 'type (e.g. shop, market, etc)' },
-    { name = 'name',        help = 'business name (rest of args)' },
+RSGCore.Commands.Add('registerbiz', locale('registerbiz_command_description') or 'Register / update a business in this region', {
+    { name = locale('region') or 'region',      help = locale('region_label') or 'region name or "here"' },
+    { name = locale('license_label') or 'licenseType', help = locale('license_desc') or 'type (e.g. shop, market, etc)' },
+    { name = locale('name') or 'name',        help = locale('name_desc') or 'business name (rest of args)' },
 }, true, function(source, args)
     local src         = source
     local regionArg   = args[1]
@@ -78,8 +79,8 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
         businessName = table.concat(args, ' ', 3)
     else
         TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Economy',
-            description = 'Usage: /registerbiz [region|here] [licenseType] [business name]',
+            title = locale('economy') or 'Economy',
+            description = locale('registerbiz_command_usage') or 'Usage: /registerbiz [region|here] [licenseType] [business name]',
             type = 'error'
         })
         return
@@ -94,8 +95,8 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
         regionName = getHereRegionAlias(src)
         if not regionName then
             TriggerClientEvent('ox_lib:notify', src, {
-                title = 'Economy',
-                description = 'Unable to determine your current region.',
+                title = locale('economy') or 'Economy',
+                description = locale('unable_to_detect_region') or 'Unable to determine your current region.',
                 type = 'error'
             })
             return
@@ -111,8 +112,8 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
 
     if not okAuth then
         TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Economy',
-            description = 'You are not allowed to manage businesses for this region.',
+            title = locale('economy') or 'Economy',
+            description = locale('not_allowed_manage_businesses') or 'You are not allowed to manage businesses for this region.',
             type = 'error'
         })
         return
@@ -127,15 +128,15 @@ RSGCore.Commands.Add('registerbiz', 'Register / update a business in this region
     )
 
     TriggerClientEvent('ox_lib:notify', src, {
-        title = 'Economy',
-        description = ('Registered business "%s" in %s.'):format(businessName, normRegion(regionName)),
+        title = locale('economy') or 'Economy',
+        description = (locale('registered_business') or 'Registered business "%s" in %s.'):format(businessName, normRegion(regionName)),
         type = 'success'
     })
 end, 'user')
 
 -- /unregisterbiz [region|here]
-RSGCore.Commands.Add('unregisterbiz', 'Clear your business registration in this region', {
-    { name = 'region', help = 'region name or "here"' },
+RSGCore.Commands.Add('unregisterbiz', locale('unregisterbiz_command_description') or 'Clear your business registration in this region', {
+    { name = locale('region') or 'region', help = locale('region_label') or 'region name or "here"' },
 }, false, function(source, args)
     local src       = source
     local regionArg = args[1]
@@ -147,8 +148,8 @@ RSGCore.Commands.Add('unregisterbiz', 'Clear your business registration in this 
         regionName = getHereRegionAlias(src)
         if not regionName then
             TriggerClientEvent('ox_lib:notify', src, {
-                title = 'Economy',
-                description = 'Unable to determine your current region.',
+                title = locale('economy') or 'Economy',
+                description = locale('unable_to_detect_region') or 'Unable to determine your current region.',
                 type = 'error'
             })
             return
@@ -158,15 +159,15 @@ RSGCore.Commands.Add('unregisterbiz', 'Clear your business registration in this 
     clearBusiness(Player.PlayerData.citizenid, regionName)
 
     TriggerClientEvent('ox_lib:notify', src, {
-        title = 'Economy',
-        description = ('Cleared your business registration in %s.'):format(normRegion(regionName)),
+        title = locale('economy') or 'Economy',
+        description = (locale('cleared_business_registration') or 'Cleared your business registration in %s.'):format(normRegion(regionName)),
         type = 'success'
     })
 end, 'user')
 
 -- /bizinfo [region|here]
-RSGCore.Commands.Add('bizinfo', 'Show your business info in this region', {
-    { name = 'region', help = 'region name or "here"' },
+RSGCore.Commands.Add('bizinfo', locale('bizinfo_command_description') or 'Show your business info in this region', {
+    { name = locale('region') or 'region', help = locale('region_label') or 'region name or "here"' },
 }, false, function(source, args)
     local src       = source
     local regionArg = args[1]
@@ -178,8 +179,8 @@ RSGCore.Commands.Add('bizinfo', 'Show your business info in this region', {
         regionName = getHereRegionAlias(src)
         if not regionName then
             TriggerClientEvent('ox_lib:notify', src, {
-                title = 'Economy',
-                description = 'Unable to determine your current region.',
+                title = locale('economy') or 'Economy',
+                description = locale('unable_to_detect_region') or 'Unable to determine your current region.',
                 type = 'error'
             })
             return
@@ -189,16 +190,16 @@ RSGCore.Commands.Add('bizinfo', 'Show your business info in this region', {
     local row = getBusinessRow(Player.PlayerData.citizenid, regionName)
     if not row then
         TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Economy',
-            description = 'No business registered in this region.',
+            title = locale('economy') or 'Economy',
+            description = locale('no_business_registered') or 'No business registered in this region.',
             type = 'inform'
         })
         return
     end
 
     TriggerClientEvent('ox_lib:notify', src, {
-        title = 'Business Info',
-        description = ('Name: %s\nType: %s\nVAT: %s'):format(
+        title = locale('business_info') or 'Business Info',
+        description = (locale('info_description') or 'Name: %s\nType: %s\nVAT: %s'):format(
             row.business_name,
             row.license_type,
             row.vat_registered == 1 and 'Registered' or 'No'

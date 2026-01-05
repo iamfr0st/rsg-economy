@@ -9,6 +9,7 @@ local RSGCore   = exports['rsg-core']:GetCoreObject()
 local TAX_TABLE = 'economy_taxes'
 local COL_CAT   = 'tax_category'
 local COL_PCT   = 'tax_percent'
+lib.locale()
 
 -- -----------------------
 -- Helpers
@@ -245,11 +246,11 @@ end
 
 RSGCore.Commands.Add(
     'settax',
-    'Set regional taxes (governor / owner only)',
+    locale('set_tax_go') or 'Set regional taxes (governor / owner only)',
     {
-        { name = 'region',   help = 'regionName or "here"' },
-        { name = 'category', help = 'property | trade | sales' },
-        { name = 'percent',  help = 'tax percent (number)' }
+        { name = locale('region') or 'region',   help = locale('region_label') or 'regionName or "here"' },
+        { name = locale('category') or 'category', help = locale('category_label_pts') or 'property | trade | sales' },
+        { name = locale('percent') or 'percent',  help = locale('percent_label_n') or 'tax percent (number)' }
     },
     true,
     function(source, args)
@@ -259,12 +260,12 @@ RSGCore.Commands.Add(
         local percent   = tonumber(args[3])
 
         if (category ~= 'property' and category ~= 'trade' and category ~= 'sales') or not percent then
-            return notify(src, 'Usage: /settax [regionName|here] [property|trade|sales] [percent]', 'error')
+            return notify(src, locale('set_tax_usage') or 'Usage: /settax [regionName|here] [property|trade|sales] [percent]', 'error')
         end
 
         local regionName = resolveTargetRegion(src, regionArg)
         if not regionName or regionName == '' then
-            return notify(src, 'Could not determine your region. Move a bit and try again.', 'error')
+            return notify(src, locale('unable_to_detect_region') or 'Could not determine your region. Move a bit and try again.', 'error')
         end
 
         local okAuth = false
@@ -274,25 +275,25 @@ RSGCore.Commands.Add(
         if ok and res then okAuth = true end
 
         if not okAuth then
-            return notify(src, ('Not authorized to change taxes for "%s".'):format(normName(regionName)), 'error')
+            return notify(src, (locale('not_allowed_manage_taxes') or 'Not authorized to change taxes for "%s".'):format(normName(regionName)), 'error')
         end
 
         local okSave = UpsertTax(regionName, category, percent)
         if not okSave then
-            return notify(src, 'Failed to save tax. Check DB schema/permissions.', 'error')
+            return notify(src, locale('failed_save_tax') or 'Failed to save tax. Check DB schema/permissions.', 'error')
         end
 
-        notify(src, ('Set %s tax for "%s" to %s%%.'):format(category, normName(regionName), tostring(percent)), 'success')
+        notify(src, (locale("set_tax_for") or 'Set %s tax for "%s" to %s%%.'):format(category, normName(regionName), tostring(percent)), 'success')
     end,
     'user'
 )
 
 RSGCore.Commands.Add(
     'cleartax',
-    'Clear regional taxes (governor / owner only)',
+    locale('clear_tax_command') or 'Clear regional taxes (governor / owner only)',
     {
-        { name = 'region',   help = 'regionName or "here"' },
-        { name = 'category', help = 'property | trade | sales | all' }
+        { name = 'region',   help = locale('region_label') or 'regionName or "here"' },
+        { name = 'category', help = locale('category_label_pts') or 'property | trade | sales | all' }
     },
     true,
     function(source, args)
@@ -301,16 +302,16 @@ RSGCore.Commands.Add(
         local catArg    = tostring(args[2] or 'all'):lower()
 
         if not regionArg then
-            return notify(src, 'Usage: /cleartax [regionName|here] [property|trade|sales|all]', 'error')
+            return notify(src, locale('clear_tax_usage') or 'Usage: /cleartax [regionName|here] [property|trade|sales|all]', 'error')
         end
 
         local regionName = resolveTargetRegion(src, regionArg)
         if not regionName or regionName == '' then
-            return notify(src, 'Could not determine your region. Move a bit and try again.', 'error')
+            return notify(src, locale('unable_to_detect_region') or 'Could not determine your region. Move a bit and try again.', 'error')
         end
 
         if catArg ~= 'all' and catArg ~= 'property' and catArg ~= 'trade' and catArg ~= 'sales' then
-            return notify(src, 'Category must be property, trade, sales, or all.', 'error')
+            return notify(src, locale('category_label_pts') or 'Category must be property, trade, sales, or all.', 'error')
         end
 
         local okAuth = false
@@ -320,24 +321,24 @@ RSGCore.Commands.Add(
         if ok and res then okAuth = true end
 
         if not okAuth then
-            return notify(src, ('Not authorized to clear taxes for "%s".'):format(normName(regionName)), 'error')
+            return notify(src, (locale('not_allowed_manage_taxes') or 'Not authorized to clear taxes for "%s".'):format(normName(regionName)), 'error')
         end
 
         local okClear = ClearTax(regionName, catArg)
         if not okClear then
-            return notify(src, 'Failed to clear tax. Check DB schema/permissions.', 'error')
+            return notify(src, locale('failed_clear_tax') or 'Failed to clear tax. Check DB schema/permissions.', 'error')
         end
 
-        notify(src, ('Cleared %s tax for "%s".'):format(catArg, normName(regionName)), 'success')
+        notify(src, (locale('cleared_tax_for') or 'Cleared %s tax for "%s".'):format(catArg, normName(regionName)), 'success')
     end,
     'user'
 )
 
 RSGCore.Commands.Add(
     'gettax',
-    'Check taxes for a region',
+    locale('check_taxes_command') or 'Check taxes for a region',
     {
-        { name = 'region', help = 'regionName or "here"' }
+        { name = 'region', help = locale('region_label') or 'regionName or "here"' }
     },
     false,
     function(source, args)
@@ -346,12 +347,12 @@ RSGCore.Commands.Add(
         local regionName = resolveTargetRegion(src, regionArg)
 
         if not regionName or regionName == '' then
-            return notify(src, 'Could not determine your region. Move a bit and try again.', 'error')
+            return notify(src, locale('unable_to_detect_region') or 'Could not determine your region. Move a bit and try again.', 'error')
         end
 
         local t = GetTaxesForRegionName(regionName)
 
-        notify(src, ('Taxes for "%s" → Property: %s%% | Trade: %s%% | Sales: %s%%')
+        notify(src, (locale('check_taxes_pts') or 'Taxes for "%s" → Property: %s%% | Trade: %s%% | Sales: %s%%')
             :format(normName(regionName), t.property, t.trade, t.sales), 'inform')
     end,
     'user'
@@ -359,11 +360,11 @@ RSGCore.Commands.Add(
 
 RSGCore.Commands.Add(
     'debugtax',
-    'Debug tax calculation',
+    locale('debug_tax_command') or 'Debug tax calculation',
     {
-        { name = 'region',   help = 'regionName or "here"' },
-        { name = 'category', help = 'property | trade | sales (default sales)' },
-        { name = 'base',     help = 'base amount (default 10)' }
+        { name = 'region',   help = locale('region_label') or 'regionName or "here"' },
+        { name = 'category', help = locale('category_label_pts') or 'property | trade | sales (default sales)' },
+        { name = 'base',     help = locale('base_amount_label') or 'base amount (default 10)' }
     },
     false,
     function(source, args)
@@ -374,14 +375,14 @@ RSGCore.Commands.Add(
         local regionName = resolveTargetRegion(src, regionArg)
 
         if not regionName or regionName == '' then
-            return notify(src, 'Could not determine your region for debugtax.', 'error')
+            return notify(src, locale('unable_to_detect_region') or 'Could not determine your region for debugtax.', 'error')
         end
 
         local taxes           = GetTaxesForRegionName(regionName)
         local pct             = tonumber(taxes[category] or 0) or 0
         local _, taxAmount, _ = CalcTax(base, 1, pct)
 
-        notify(src, ('[debugtax] reg=%s cat=%s pct=%s base=%s tax=%s')
+        notify(src, (locale('debug_tax_notify') or '[debugtax] reg=%s cat=%s pct=%s base=%s tax=%s')
             :format(normName(regionName), category, pct, base, taxAmount), 'inform')
     end,
     'user'

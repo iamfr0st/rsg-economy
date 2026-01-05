@@ -45,6 +45,10 @@ server_scripts {
     'server/sv_residency.lua',
 }
 
+files{
+    'locales/*.json',
+}
+
 dependencies {
     'ox_lib',
     'oxmysql',

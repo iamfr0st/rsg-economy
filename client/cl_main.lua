@@ -3,6 +3,7 @@
 -- District/state region detection + server callback bridge (FIXED)
 
 local RSGCore = exports['rsg-core']:GetCoreObject()
+lib.locale()
 
 -- Convert "New Hanover" -> "new_hanover"
 local function toAlias(name)
@@ -51,14 +52,14 @@ RegisterCommand('checkregion', function()
 
     if st then
         lib.notify({
-            title       = 'Economy',
-            description = ('State: %s | Alias: %s | Hash: 0x%X'):format(st.name, toAlias(st.name), st.hash),
+            title       = locale('economy') or 'Economy',
+            description = (locale('economy_description') or 'State: %s | Alias: %s | Hash: 0x%X'):format(st.name, toAlias(st.name), st.hash),
             type        = 'inform'
         })
     else
         lib.notify({
-            title       = 'Economy',
-            description = 'Unable to detect your State.',
+            title       = locale('economy') or 'Economy',
+            description = locale('unable_to_detect_state') or 'Unable to detect your State.',
             type        = 'error'
         })
     end
@@ -87,8 +88,8 @@ end, false)
 RegisterCommand('hello', function()
     if lib and lib.notify then
         lib.notify({
-            title       = 'Economy',
-            description = 'Howdy, partner! The economy resource is running.',
+            title       = locale('economy') or 'Economy',
+            description = locale('hello_description') or 'Howdy, partner! The economy resource is running.',
             type        = 'inform'
         })
     end

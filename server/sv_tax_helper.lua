@@ -8,6 +8,7 @@
 --   exports['rsg-economy']:ApplyAndRecordTax(...)
 --======================================================================
 
+lib.locale()
 local RSGCore = exports['rsg-core']:GetCoreObject()
 
 -- internal: safe number
@@ -174,15 +175,15 @@ function ApplyAndRecordTax(src, category, basePrice, amount, sellerCitizenId, de
     if tax > 0 and src and src > 0 then
         local msg
         if cat == 'trade' then
-            msg = ('Trade tax %.2f%% deducted: $%.2f from your payout.')
+            msg = (locale('trade_tax_deducted') or 'Trade tax %.2f%% deducted: $%.2f from your payout.')
                 :format(pct, tax)
         else
-            msg = ('Sales tax %.2f%% added: $%.2f on your payment.')
+            msg = (locale('sales_tax_added') or 'Sales tax %.2f%% added: $%.2f on your payment.')
                 :format(pct, tax)
         end
 
         TriggerClientEvent('ox_lib:notify', src, {
-            title       = 'Tax',
+            title       = locale('tax') or 'Tax',
             description = msg,
             type        = 'inform',
             duration    = 6000

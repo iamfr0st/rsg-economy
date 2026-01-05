@@ -16,6 +16,7 @@
 local RSGCore      = exports['rsg-core']:GetCoreObject()
 local TBL_TREASURY = 'economy_treasury'
 local GOV_TABLE    = Config.TableName or 'governors'
+lib.locale()
 
 local ALIAS_TO_HASH, HASH_TO_NAME = {}, {}
 
@@ -249,28 +250,28 @@ end)
 
 RegisterCommand('treasury', function(src, args)
     local regHex = normalizeRegion(args[1])
-    if not regHex then return notify(src, 'Invalid region. Try /treasury new_hanover', 'error') end
+    if not regHex then return notify(src, locale('invalid_region_t') or 'Invalid region. Try /treasury new_hanover', 'error') end
     getBalance(regHex, function(bal)
-        notify(src, ('Treasury for %s: $%d'):format(regionNameFromHash(regHex), bal), 'inform')
+        notify(src, (locale('treasury_for') or 'Treasury for %s: $%d'):format(regionNameFromHash(regHex), bal), 'inform')
     end)
 end, false)
 
 RegisterCommand('withdraw', function(src, args)
     local regHex = normalizeRegion(args[1])
     local amt    = tonumber(args[2] or 0) or 0
-    if amt <= 0 then return notify(src, 'Amount must be > 0', 'error') end
-    if not regHex then return notify(src, 'Invalid region.', 'error') end
+    if amt <= 0 then return notify(src, locale('amount_must_be_positive') or 'Amount must be > 0', 'error') end
+    if not regHex then return notify(src, locale('invalid_region') or 'Invalid region.', 'error') end
 
     exports['rsg-economy']:WithdrawFromTreasury(regHex, amt, src, function(ok, newBal)
         if not ok then
             if newBal then
-                notify(src, ('Insufficient funds. Current balance: $%d'):format(newBal), 'error')
+                notify(src, (locale('insufficient_funds') or 'Insufficient funds. Current balance: $%d'):format(newBal), 'error')
             else
-                notify(src, 'Only the governor of this region or an admin can withdraw.', 'error')
+                notify(src, locale('not_allowed_withdraw') or 'Only the governor of this region or an admin can withdraw.', 'error')
             end
             return
         end
-        notify(src, ('Withdrew $%d from %s. New balance: $%d')
+        notify(src, (locale('withdrew_from_treasury') or 'Withdrew $%d from %s. New balance: $%d')
             :format(amt, regionNameFromHash(regHex), newBal or 0), 'success')
     end)
 end, false)
